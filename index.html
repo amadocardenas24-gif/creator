@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador AR Móvil</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: block;
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 30px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-label:hover {
+            border-color: #667eea;
+            background: #f0f2ff;
+        }
+
+        .file-label i {
+            font-size: 40px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .selected-file {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .selected-file i {
+            color: #4caf50;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px;
+            width: 100%;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: transform 0.3s;
+        }
+
+        .generate-btn:active {
+            transform: scale(0.98);
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #4caf50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-mobile-alt"></i> Generador AR Móvil</h1>
+            <p>Crea proyectos AR con solo 3 archivos</p>
+        </div>
+
+        <input type="file" id="imageInput" accept="image/*" class="file-input">
+        <label for="imageInput" class="file-label">
+            <i class="fas fa-image"></i>
+            <div>?? Seleccionar Imagen Target</div>
+            <small>La imagen que activará el AR</small>
+        </label>
+
+        <input type="file" id="videoInput" accept="video/*" class="file-input">
+        <label for="videoInput" class="file-label">
+            <i class="fas fa-video"></i>
+            <div>?? Seleccionar Video</div>
+            <small>El video que se reproducirá</small>
+        </label>
+
+        <input type="file" id="mindInput" accept=".mind" class="file-input">
+        <label for="mindInput" class="file-label">
+            <i class="fas fa-brain"></i>
+            <div>?? Seleccionar Archivo .mind</div>
+            <small>El modelo entrenado de MindAR</small>
+        </label>
+
+        <div id="selectedFiles"></div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div id="progressText">Generando proyecto...</div>
+        </div>
+
+        <button class="generate-btn" onclick="generateProject()">
+            <i class="fas fa-bolt"></i> GENERAR PROYECTO ZIP
+        </button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        let selectedFiles = {
+            image: null,
+            video: null,
+            mind: null
+        };
+
+        // Manejar selección de archivos
+        document.getElementById('imageInput').addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                selectedFiles.image = e.target.files[0];
+                updateSelectedFiles();
+            }
+        });
+
+        document.getElementById('videoInput').addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                selectedFiles.video = e.target.files[0];
+                updateSelectedFiles();
+            }
+        });
+
+        document.getElementById('mindInput').addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                selectedFiles.mind = e.target.files[0];
+                updateSelectedFiles();
+            }
+        });
+
+        function updateSelectedFiles() {
+            const container = document.getElementById('selectedFiles');
+            container.innerHTML = '';
+            
+            Object.entries(selectedFiles).forEach(([type, file]) => {
+                if (file) {
+                    const div = document.createElement('div');
+                    div.className = 'selected-file';
+                    div.innerHTML = `
+                        <div>
+                            <strong>${type === 'image' ? '?? Imagen' : type === 'video' ? '?? Video' : '?? .mind'}</strong>
+                            <div>${file.name}</div>
+                        </div>
+                        <i class="fas fa-check-circle"></i>
+                    `;
+                    container.appendChild(div);
+                }
+            });
+        }
+
+        async function generateProject() {
+            // Verificar archivos
+            if (!selectedFiles.image || !selectedFiles.video || !selectedFiles.mind) {
+                alert('Por favor, selecciona los 3 archivos necesarios');
+                return;
+            }
+
+            // Mostrar progreso
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '30%';
+            progressText.textContent = 'Leyendo archivos...';
+
+            try {
+                const zip = new JSZip();
+                
+                // Agregar archivos al ZIP
+                progressFill.style.width = '50%';
+                progressText.textContent = 'Agregando archivos al ZIP...';
+                
+                zip.file(selectedFiles.image.name, selectedFiles.image);
+                zip.file(selectedFiles.video.name, selectedFiles.video);
+                zip.file(selectedFiles.mind.name, selectedFiles.mind);
+                
+                // Crear HTML
+                progressFill.style.width = '70%';
+                progressText.textContent = 'Generando HTML...';
+                
+                const htmlContent = generateHTML();
+                zip.file('index.html', htmlContent);
+                
+                // Crear ZIP
+                progressFill.style.width = '90%';
+                progressText.textContent = 'Generando ZIP...';
+                
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                
+                // Descargar
+                progressFill.style.width = '100%';
+                progressText.textContent = '¡Listo! Descargando...';
+                
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ar_project_${Date.now()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // Reset
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressFill.style.width = '0%';
+                    alert('? Proyecto generado exitosamente!');
+                }, 1000);
+                
+            } catch (error) {
+                alert('Error: ' + error.message);
+                progressContainer.style.display = 'none';
+                progressFill.style.width = '0%';
+            }
+        }
+
+        function generateHTML() {
+            return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <!-- HTML de la experiencia AR -->
+            </html>
+            `;
+        }
+
+        // Detectar si es móvil y sugerir instalar como PWA
+        if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                // Guardar evento para usarlo después
+                window.deferredPrompt = e;
+                
+                // Mostrar botón de instalación
+                showInstallButton();
+            });
+        }
+
+        function showInstallButton() {
+            const installBtn = document.createElement('button');
+            installBtn.innerHTML = '?? Instalar App';
+            installBtn.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 12px 20px;
+                border-radius: 25px;
+                font-size: 14px;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 1000;
+            `;
+            
+            installBtn.onclick = async () => {
+                if (window.deferredPrompt) {
+                    window.deferredPrompt.prompt();
+                    const { outcome } = await window.deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        installBtn.remove();
+                    }
+                }
+            };
+            
+            document.body.appendChild(installBtn);
+        }
+    </script>
+</body>
+</html>
